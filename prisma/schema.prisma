@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  role   Role
+  User   User @relation(fields: [userId], references: [id])
+}
+
+model Commercial {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  User   User @relation(fields: [userId], references: [id])
+}
+
+model Decider {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  User   User @relation(fields: [userId], references: [id])
+}
+
+model Device {
+  id                Int                 @id @default(autoincrement())
+  nom               String              @default("Unnamed Device") @db.VarChar(255)        // New field: Nom
+  macAdresse        String              @default("UNKNOWN") @db.VarChar(255)        // Renamed from macAdr
+  status            DeviceStatus                                // Updated enum
+  peripheriques     Json?                                        // New field: Les périphériques attaché
+  localisation      Json?                                        // New field: Localisation
+  cpuUsage          Float?                                       // New field: CPU usage
+  ramUsage          Float?                                       // New field: RAM usage
+  price 		Int?
+  manufacturingCost 		Float?
+  createdAt 		DateTime @default(now())
+  type 		String
+  userId            Int?
+  EndUser           EndUser?            @relation(fields: [userId], references: [id])
+  Sale              Sale[]
+  UserDeviceHistory UserDeviceHistory[]
+  maintainerId  Int?         // New
+  Maintainer    Maintainer?  @relation(fields: [maintainerId], references: [id])
+  Intervention      Intervention[]
+}
+
+model EndUser {
+  id          Int           @id @default(autoincrement())
+  helperId    Int?
+  lastPos     Json?
+  userId      Int           @unique
+  status      String
+  createdAt   DateTime      @default(now())
+  Device      Device[]
+  Helper      Helper?       @relation(fields: [helperId], references: [id])
+  User        User          @relation(fields: [userId], references: [id])
+  HelpRequest HelpRequest[]
+  Sale        Sale[]
+  urgenceContacts Contact[] 
+}
+
+model EnvUser {
+  id          Int         @id @default(autoincrement())
+  userId      Int
+  envId       Int
+  Environment Environment @relation(fields: [envId], references: [id])
+  User        User        @relation(fields: [userId], references: [id])
+}
+
+model Environment {
+  id               Int         @id @default(autoincrement())
+  name             String      @db.VarChar(255)
+  address          String      @db.VarChar(255)
+  cords            Json
+  pathCartographie String      @db.VarChar(255)
+  createdAt        DateTime    @default(now())
+  scale            Int
+  EnvUser          EnvUser[]
+  Itinerary        Itinerary[]
+  Obstacle         Obstacle[]
+  Zone             Zone[]
+}
+
+model HelpRequest {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  helperId Int
+  Helper   Helper  @relation(fields: [helperId], references: [id])
+  EndUser  EndUser @relation(fields: [userId], references: [id])
+}
+
+model Helper {
+  id          Int           @id @default(autoincrement())
+  userId      Int           @unique
+  EndUser     EndUser[]
+  HelpRequest HelpRequest[]
+  User        User          @relation(fields: [userId], references: [id])
+}
+
+model Intervention {
+  id           Int              @id @default(autoincrement())
+  deviceId     Int
+  Device       Device           @relation(fields: [deviceId], references: [id])
+  maintainerId Int
+  Maintainer   Maintainer       @relation(fields: [maintainerId], references: [id])
+  type         InterventionType
+  isRemote     Boolean?
+  planDate     DateTime?
+  Priority     String?          @db.VarChar(255)
+  description  String?          @db.VarChar(255)
+  status       InterventionStatus @default(en_panne)
+}
+
+model Itinerary {
+  id          Int         @id @default(autoincrement())
+  startPoint  Json
+  endPoint    Json
+  envId       Int
+  Environment Environment @relation(fields: [envId], references: [id])
+}
+
+model KPI {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime @default(now())
+  details   String   @db.VarChar(255)
+  User      User     @relation(fields: [userId], references: [id])
+}
+
+model Maintainer {
+  id           Int            @id @default(autoincrement())
+  userId       Int            @unique
+  Intervention Intervention[]
+  User         User           @relation(fields: [userId], references: [id])
+  Devices      Device[]       // New: Devices managed by this maintainer
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  content   String   @db.VarChar(255)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    Int
+  User      User     @relation(fields: [userId], references: [id])
+}
+
+model Obstacle {
+  id          Int         @id @default(autoincrement())
+  envId       Int
+  name        String      @db.VarChar(50)
+  description String      @db.VarChar(255)
+  cords       Json
+  Environment Environment @relation(fields: [envId], references: [id])
+}
+
+model POI {
+  id          Int         @id @default(autoincrement())
+  zoneId      Int
+  name        String      @db.VarChar(50)
+  category    POICategory
+  description String      @db.VarChar(255)
+  location    Json
+  Zone        Zone        @relation(fields: [zoneId], references: [id])
+}
+
+model Profile {
+  userId      Int     @unique
+  firstname   String?
+  lastname    String?
+  phonenumber String?
+  address     String? @db.VarChar(255)
+  User        User    @relation(fields: [userId], references: [id])
+}
+
+model Sale {
+  id        Int      @id @default(autoincrement())
+  deviceId  Int
+  buyerId   Int
+  createdAt DateTime @default(now())
+  EndUser   EndUser  @relation(fields: [buyerId], references: [userId])
+  Device    Device   @relation(fields: [deviceId], references: [id])
+}
+
+model User {
+  id                Int                 @id @default(autoincrement())
+  email             String              @unique @db.VarChar(100)
+  password          String              @db.VarChar(255)
+  role              Role?
+  lastLogin 		DateTime?
+  createdAt 		DateTime @default(now())
+  Admin             Admin?
+  Commercial        Commercial?
+  Decider           Decider?
+  EndUser           EndUser?
+  EnvUser           EnvUser[]
+  Helper            Helper?
+  Log               Log[]
+  Maintainer        Maintainer?
+  Notification      Notification[]
+  Profile           Profile?
+  UserDeviceHistory UserDeviceHistory[]
+  securityIncidents   SecurityIncident[]
+}
+
+model UserDeviceHistory {
+  id       Int      @id @default(autoincrement())
+  deviceId Int
+  userId   Int
+  useDate  DateTime @default(now())
+  Device   Device   @relation(fields: [deviceId], references: [id])
+  User     User     @relation(fields: [userId], references: [id])
+}
+
+model Zone {
+  id          Int         @id @default(autoincrement())
+  envId       Int
+  name        String      @db.VarChar(255)
+  type        ZoneType
+  color       String      @db.VarChar(50)
+  icon        String      @db.VarChar(255)
+  cords       Json
+  createdAt   DateTime    @default(now())
+  POI         POI[]
+  Environment Environment @relation(fields: [envId], references: [id])
+}
+
+enum DeviceStatus {
+  connected
+  disconnected
+  under_maintenance
+  out_of_service
+  defective
+  broken_down
+}
+
+enum DeviceType {
+  Ceinture
+  Canne_Augment_       @map("Canne_Augmenté")
+  Lunnettes_Connect_es @map("Lunnettes_Connectées")
+}
+
+enum InterventionType {
+  preventive
+  curative
+}
+
+enum InterventionStatus {
+  en_panne
+  en_progres
+  complete
+}
+
+enum POICategory {
+  acceuil
+  bureau
+  sortie
+}
+
+enum Role {
+  super
+  normal
+  commercial
+  decider
+  endUser
+  helper
+  maintainer
+}
+
+enum ZoneType {
+  Zone_de_circulation
+  Zone_de_travail
+  Zone_de_service
+  Zone_interdite
+  Zone_danger
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String   @db.VarChar(100)
+  otp       String   @db.VarChar(6) // Store OTP as a 6-digit string
+  expiresAt DateTime
+}
+
+model Contact {
+  id         Int      @id @default(autoincrement())
+  nom        String
+  telephone  String
+  endUserId  Int                             // Foreign key
+  endUser    EndUser   @relation(fields: [endUserId], references: [id])
+}
+
+
+// Added enum for security incident severity levels
+enum SeverityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Added new model for security incident tracking
+model SecurityIncident {
+  id          Int           @id @default(autoincrement())
+  title       String        @db.VarChar(100)
+  description String        @db.VarChar(255)
+  severity    SeverityLevel @default(LOW)
+  reportedAt  DateTime      @default(now())
+  resolvedAt  DateTime?
+  reportedBy  Int
+  user        User          @relation(fields: [reportedBy], references: [id])
+  isResolved  Boolean       @default(false)
+}
