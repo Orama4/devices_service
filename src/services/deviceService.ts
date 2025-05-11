@@ -1,6 +1,6 @@
 import mqttClient from '../utils/mqtt_client';
 import { PrismaClient } from '@prisma/client';
-import { DeviceStatus } from "../node_modules/@prisma/client";
+import { DeviceStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
