@@ -18,6 +18,11 @@ interface HeartbeatData {
   device_id: string;
   online: boolean;
 }
+interface EndUserBasicInfo {
+  id: number;
+  firstName: string | null;
+  lastName: string | null;
+}
 
 // Interface for device heartbeat tracking
 interface DeviceHeartbeatStore {
@@ -563,3 +568,70 @@ export const marknotificationAsRead = async (notificationId: number) => {
     return false;
   }
 }
+
+
+export const getAllEndUsersService = async (): Promise<EndUserBasicInfo[]> => {
+  try {
+    const endUsers = await prisma.endUser.findMany({
+      select: {
+        id: true,
+        User: {
+          select: {
+            Profile: {
+              select: {
+                firstname: true,
+                lastname: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return endUsers.map(endUser => ({
+      id: endUser.id,
+      firstName: endUser.User.Profile?.firstname || null,
+      lastName: endUser.User.Profile?.lastname || null
+    }));
+  } catch (error) {
+    console.error('Error in getAllEndUsersService:', error);
+    throw error;
+  }
+};
+
+
+export const getEndUserByIdService = async (endUserId: number): Promise<EndUserBasicInfo> => {
+  try {
+    const endUser = await prisma.endUser.findUnique({
+      where: {
+        id: endUserId
+      },
+      select: {
+        id: true,
+        User: {
+          select: {
+            Profile: {
+              select: {
+                firstname: true,
+                lastname: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!endUser) {
+      throw new Error('End user not found');
+    }
+
+    return {
+      id: endUser.id,
+      firstName: endUser.User.Profile?.firstname || null,
+      lastName: endUser.User.Profile?.lastname || null
+    };
+  } catch (error) {
+    console.error(`Error in getEndUserByIdService for ID ${endUserId}:`, error);
+    throw error;
+  }
+};

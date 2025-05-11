@@ -7,6 +7,7 @@ import deviceRoutes from "./routes/deviceRoutes";
 import { subscribe, publish } from "./utils/mqtt_client";
 import {createNotificationForDeviceAlert , getAndMarkDeviceAlerts} from "./services/deviceService"
 
+import endUserRoutes from './routes/endUserRoutes';
 
 // Configuration des variables d'environnement
 dotenv.config();
@@ -49,6 +50,7 @@ app.use(express.json());
 // Routes
 app.use("/users", userRoutes);
 app.use("/devices", deviceRoutes);
+app.use('/endusers', endUserRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
