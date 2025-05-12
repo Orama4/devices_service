@@ -8,7 +8,9 @@ import {
   requestHeartbeatData,
   getLastHeartbeatData ,
   getAndMarkDeviceAlerts,
-  marknotificationAsRead
+  marknotificationAsRead,
+  getAllEndUsersService, 
+  getEndUserByIdService 
 } from '../services/deviceService';
 
 import { 
@@ -236,4 +238,40 @@ export const refreshDeviceHeartbeat = (req: Request, res: Response) => {
   const { deviceId } = req.params;
   requestHeartbeatData(Number(deviceId));
   res.json({ message: `Heartbeat refresh request sent to ${deviceId}` });
+};
+
+
+export const getAllEndUsers = async (req: Request, res: Response) => {
+  try {
+    const endUsers = await getAllEndUsersService();
+    res.status(200).json(endUsers);
+  } catch (error) {
+    console.error('Error in getAllEndUsers controller:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to fetch end users' 
+    });
+  }
+};
+
+
+export const getEndUserById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const endUserId = parseInt(req.params.id);
+    if (isNaN(endUserId)) {
+      res.status(400).json({ error: 'Invalid end user ID' });
+      return;
+    }
+
+    const endUser = await getEndUserByIdService(endUserId);
+    res.status(200).json(endUser);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'End user not found') {
+      res.status(404).json({ error: error.message });
+    } else {
+      console.error('Error in getEndUserById controller:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch end user' 
+      });
+    }
+  }
 };
