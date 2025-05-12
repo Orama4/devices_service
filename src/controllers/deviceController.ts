@@ -151,8 +151,7 @@ export const deleteDevice = async (req: Request, res: Response): Promise<void> =
 };
 
 
-// Handle device control command
-export const controlDevice = (req: Request, res: Response) => {
+export const controlDevice = async (req: Request, res: Response) => {
   const { deviceId, action } = req.body;
 
   // Validate the action
@@ -160,8 +159,17 @@ export const controlDevice = (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid action' });
   }
 
-  sendDeviceCommand(deviceId, action);
-  res.json({ message: `Command ${action} sent to device ${deviceId}` });
+  try {
+    const deviceResponse = await sendDeviceCommand(deviceId, action);
+
+    if (deviceResponse.error) {
+      return res.status(500).json({ error: true, message: deviceResponse.message });
+    }
+
+    return res.json({ status: 'ok', message: `Command ${action} executed`, response: deviceResponse });
+  } catch (err) {
+    return res.status(500).json({ error: true, message: 'Failed to control device.' });
+  }
 };
 
 // Handle device status request

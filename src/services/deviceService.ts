@@ -103,66 +103,73 @@ const analyzeMetrics = (deviceId: string, heartbeatData: HeartbeatData) => {
     }
   }
 };
-
-// Function to send a device command and handle response
 export const sendDeviceCommand = (
   deviceId: number,
   command: string,
   payloadData: object = {}
 ): Promise<any> => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const requestTopic = `device${deviceId}/request`;
     const responseTopic = `device${deviceId}/response`;
     const payload = JSON.stringify({ command, ...payloadData });
-    // Subscribe to response topic
+
+    let isHandled = false;
+
+    const cleanup = () => {
+      mqttClient.removeListener('message', messageHandler);
+      mqttClient.unsubscribe(responseTopic, (err) => {
+        if (err) {
+          console.error(`❌ Failed to unsubscribe from ${responseTopic}`, err);
+        } else {
+          console.log(`✅ Unsubscribed from ${responseTopic}`);
+        }
+      });
+    };
+
+    const messageHandler = (topic: string, message: Buffer) => {
+      if (topic === responseTopic && !isHandled) {
+        isHandled = true;
+        clearTimeout(timeout);
+        const response = JSON.parse(message.toString());
+        console.log('📨 Response received:', response);
+        cleanup();
+        resolve(response); // Respond normally
+      }
+    };
+
     mqttClient.subscribe(responseTopic, (err) => {
       if (err) {
         console.error(`❌ Failed to subscribe to ${responseTopic}`, err);
-        return reject(err);
+        isHandled = true;
+        cleanup();
+        return resolve({ error: true, message: `Subscription failed: ${err.message}` });
       }
       console.log(`✅ Subscribed to ${responseTopic}`);
     });
 
-    // Send the command
     mqttClient.publish(requestTopic, payload, (err) => {
       if (err) {
         console.error(`❌ Failed to send command '${command}' to device ${deviceId}`, err);
-        return reject(err);
+        isHandled = true;
+        cleanup();
+        return resolve({ error: true, message: `Publish failed: ${err.message}` });
       }
       console.log(`📡 Command '${command}' sent to device ${deviceId}`);
     });
 
-    // Wait for the response and then unsubscribe
-    const messageHandler = (topic: string, message: Buffer) => {
-      if (topic === responseTopic) {
-        const response = JSON.parse(message.toString());
-        console.log(response);
-
-        mqttClient.removeListener('message', messageHandler);
-        mqttClient.unsubscribe(responseTopic, (err) => {
-          if (err) {
-            console.error(`❌ Failed to unsubscribe from ${responseTopic}`, err);
-          } else {
-            console.log(`✅ Unsubscribed from ${responseTopic}`);
-          }
-        });
-
-        resolve(response);
-      }
-    };
-
     mqttClient.on('message', messageHandler);
 
-    // Timeout if no response within 5 seconds
-    setTimeout(() => {
-      mqttClient.removeListener('message', messageHandler);
-      mqttClient.unsubscribe(responseTopic, () => {});
-
-      // Reject with a custom message
-      reject(new Error('ODB is not activated or not responding'));
-    }, 5000);  // Timeout after 5 seconds
+    const timeout = setTimeout(() => {
+      if (!isHandled) {
+        isHandled = true;
+        cleanup();
+        console.warn(`⚠️ Timeout: ODB not responding for device ${deviceId}`);
+        resolve({ error: true, message: 'ODB is not activated or not responding' });
+      }
+    }, 5000);
   });
 };
+
 
 
 // Function to request device status
