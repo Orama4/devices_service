@@ -109,14 +109,16 @@ const analyzeMetrics = (deviceId: string, heartbeatData: HeartbeatData) => {
   }
 };
 export const sendDeviceCommand = (
-  deviceId: number,
+  macAddress: string,
   command: string,
   payloadData: object = {}
 ): Promise<any> => {
   return new Promise((resolve) => {
-    const requestTopic = `device${deviceId}/request`;
-    const responseTopic = `device${deviceId}/response`;
+    const sanitized = macAddress.replace(/[:\-]/g, '').toUpperCase();
+    const requestTopic = `device${sanitized}/request`;
+    const responseTopic = `device${sanitized}/response`;
     const payload = JSON.stringify({ command, ...payloadData });
+    console.log(requestTopic);
 
     let isHandled = false;
 
@@ -154,12 +156,12 @@ export const sendDeviceCommand = (
 
     mqttClient.publish(requestTopic, payload, (err) => {
       if (err) {
-        console.error(`❌ Failed to send command '${command}' to device ${deviceId}`, err);
+        console.error(`❌ Failed to send command '${command}' to device ${macAddress}`, err);
         isHandled = true;
         cleanup();
         return resolve({ error: true, message: `Publish failed: ${err.message}` });
       }
-      console.log(`📡 Command '${command}' sent to device ${deviceId}`);
+      console.log(`📡 Command '${command}' sent to device ${macAddress}`);
     });
 
     mqttClient.on('message', messageHandler);
@@ -168,7 +170,7 @@ export const sendDeviceCommand = (
       if (!isHandled) {
         isHandled = true;
         cleanup();
-        console.warn(`⚠️ Timeout: ODB not responding for device ${deviceId}`);
+        console.warn(`⚠️ Timeout: ODB not responding for device ${macAddress}`);
         resolve({ error: true, message: 'ODB is not activated or not responding' });
       }
     }, 5000);
@@ -178,13 +180,13 @@ export const sendDeviceCommand = (
 
 
 // Function to request device status
-export const sendStatusRequest = (deviceId: number) => {
-  sendDeviceCommand(deviceId, 'status');
+export const sendStatusRequest = (macAddress: string) => {
+  sendDeviceCommand(macAddress, 'status');
 };
 
 // Function to request heartbeat data
-export const requestHeartbeatData = (deviceId: number) => {
-  sendDeviceCommand(deviceId, 'get_heartbeat_data');
+export const requestHeartbeatData = (macAddress: string) => {
+  sendDeviceCommand(macAddress, 'get_heartbeat_data');
 };
 
 // Subscribe to device state and listen for heartbeats
@@ -318,13 +320,13 @@ export async function createIntervention(
 }
 // --- Device State Setters ---
 
-const setDeviceDefective = async (deviceId: number, reason: string = '') => {
-  console.error(`🚨 Device ${deviceId} is now marked as Défectueux (defective). Reason: ${reason}`);
-  sendDeviceCommand(deviceId, 'set_defective');
-  await updateDeviceStatusInDB(deviceId, "defective");
+const setDeviceDefective = async (macAddress: number, reason: string = '') => {
+  console.error(`🚨 Device ${macAddress} is now marked as Défectueux (defective). Reason: ${reason}`);
+  sendDeviceCommand(macAddress, 'set_defective');
+  await updateDeviceStatusInDB(macAddress, "defective");
   await createIntervention(
     "curative", 
-    deviceId, 
+    macAddress, 
     1, // Maintainer ID
     "1", // Priority (high)
     false ,

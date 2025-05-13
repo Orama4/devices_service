@@ -154,7 +154,7 @@ export const deleteDevice = async (req: Request, res: Response): Promise<void> =
 
 
 export const controlDevice = async (req: Request, res: Response) => {
-  const { deviceId, action } = req.body;
+  const { macAddress, action } = req.body;
 
   // Validate the action
   if (!['activer', 'desactiver', 'set_defective', 'set_maintenance'].includes(action)) {
@@ -162,7 +162,7 @@ export const controlDevice = async (req: Request, res: Response) => {
   }
 
   try {
-    const deviceResponse = await sendDeviceCommand(deviceId, action);
+    const deviceResponse = await sendDeviceCommand(macAddress, action);
 
     if (deviceResponse.error) {
       return res.status(500).json({ error: true, message: deviceResponse.message });
@@ -176,9 +176,9 @@ export const controlDevice = async (req: Request, res: Response) => {
 
 // Handle device status request
 export const requestDeviceStatus = (req: Request, res: Response) => {
-  const { deviceId } = req.params;
-  sendStatusRequest(Number(deviceId));
-  res.json({ message: `Status request sent to ${deviceId}` });
+  const { macAddress } = req.params;
+  sendStatusRequest(macAddress);
+  res.json({ message: `Status request sent to ${macAddress}` });
 };
 
 // Subscribe to device heartbeat and status updates
@@ -190,8 +190,7 @@ export const subscribeDeviceUpdates = (req: Request, res: Response) => {
 
 // Get last known heartbeat for a device from memory
 export const getDeviceHeartbeat = async (req: Request, res: Response) => {
-  const { deviceId } = req.params;
-  const numDeviceId = Number(deviceId);
+  const { macAddress } = req.params;
   
   // First, check if we have the data in memory
   /*const heartbeatData = getLastHeartbeatData(numDeviceId);
@@ -209,15 +208,15 @@ export const getDeviceHeartbeat = async (req: Request, res: Response) => {
   // If not in memory, request it from the device
   //requestHeartbeatData(numDeviceId);
   try {
-    const response = await sendDeviceCommand(numDeviceId, 'status');
+    const response = await sendDeviceCommand(macAddress, 'status');
     return res.json({
-      deviceId: numDeviceId,
+      macAddress: macAddress,
       heartbeat: response,
       lastUpdated: new Date(response.timestamp * 1000).toISOString()
     });
   } catch (error) {
     return res.status(202).json({ 
-      message: `No heartbeat data available. Request sent to device ${deviceId}. Try again shortly.` 
+      message: `No heartbeat data available. Request sent to device ${macAddress}. Try again shortly.` 
     });
   }
 };
@@ -235,9 +234,9 @@ export const getRiskyDevices = (_req: Request, res: Response) => {
 
 // Force refresh of device heartbeat
 export const refreshDeviceHeartbeat = (req: Request, res: Response) => {
-  const { deviceId } = req.params;
-  requestHeartbeatData(Number(deviceId));
-  res.json({ message: `Heartbeat refresh request sent to ${deviceId}` });
+  const { macAddress } = req.params;
+  requestHeartbeatData(macAddress);
+  res.json({ message: `Heartbeat refresh request sent to ${macAddress}` });
 };
 
 
