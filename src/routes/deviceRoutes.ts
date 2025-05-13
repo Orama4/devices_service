@@ -12,19 +12,24 @@ import {
 import {getAllDevices,getDevice,createDevice,updateDevice, deleteDevice,getNotificationsForDevice} from "../controllers/deviceController";
 
 const router = express.Router();
+function asyncHandler(fn: any) {
+  return function (req: any, res: any, next: any) {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 // Control device (send command)
-router.post('/control', controlDevice);
+router.post('/control', asyncHandler(controlDevice));
 
 //status and subscribtion
 router.get('/status/:deviceId', requestDeviceStatus);  //sends a new request to the device for its status
 router.post('/subscribe/:deviceId', subscribeDeviceUpdates); // Subscribe to device updates
-router.put('/markNotification/:notificationId', markNotificationAsRead); // Mark notification as read
+router.put('/markNotification/:notificationId', asyncHandler(markNotificationAsRead)); // Mark notification as read
 
 // Heartbeat data routes
-router.get('/heartbeat/:macAddress', getDeviceHeartbeat);  //first checks cached data, then requests new data if needed
-router.get('/risky-devices', getRiskyDevices);      // Get all risky devices
-router.get('/notifications/:deviceId',getNotificationsForDevice);
+router.get('/heartbeat/:macAddress', asyncHandler(getDeviceHeartbeat));  //first checks cached data, then requests new data if needed
+router.get('/risky-devices', asyncHandler(getRiskyDevices));      // Get all risky devices
+router.get('/notifications/:deviceId',asyncHandler(getNotificationsForDevice));
 
 router.get("/",getAllDevices);//http://localhost:5002/devices?page=1&pageSize=5
 router.get("/:id",getDevice);//http://localhost:5002/devices/3

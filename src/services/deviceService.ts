@@ -297,7 +297,7 @@ export async function createIntervention(
   type: 'preventive' | 'curative',
   deviceId: number,
   maintainerId: number,
-  Priority: String,
+  Priority: string,
   isRemote: boolean = false ,
   planDate: Date = new Date()
 ) {
@@ -318,11 +318,12 @@ export async function createIntervention(
     throw new Error('Error creating intervention');
   }
 }
-// --- Device State Setters ---
 
+
+// --- Device State Setters ---
 const setDeviceDefective = async (macAddress: number, reason: string = '') => {
   console.error(`🚨 Device ${macAddress} is now marked as Défectueux (defective). Reason: ${reason}`);
-  sendDeviceCommand(macAddress, 'set_defective');
+  sendDeviceCommand(macAddress.toString(), 'set_defective');
   await updateDeviceStatusInDB(macAddress, "defective");
   await createIntervention(
     "curative", 
