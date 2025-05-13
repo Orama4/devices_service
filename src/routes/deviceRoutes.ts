@@ -22,7 +22,7 @@ router.post('/subscribe/:deviceId', subscribeDeviceUpdates); // Subscribe to dev
 router.put('/markNotification/:notificationId', markNotificationAsRead); // Mark notification as read
 
 // Heartbeat data routes
-router.get('/heartbeat/:deviceId', getDeviceHeartbeat);  //first checks cached data, then requests new data if needed
+router.get('/heartbeat/:macAddress', getDeviceHeartbeat);  //first checks cached data, then requests new data if needed
 router.get('/risky-devices', getRiskyDevices);      // Get all risky devices
 router.get('/notifications/:deviceId',getNotificationsForDevice);
 
