@@ -1,34 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import deviceRouter from '../routes/deviceRoutes';
-
-// Mock the controller
-/*
-jest.mock('../controllers/deviceController', () => ({
-  controlDevice: jest.fn(async (req, res) => {
-    const { macAddress, action } = req.body;
-    if (!macAddress) return res.status(400).json({ error: 'macAddress is required' });
-    if (!action) return res.status(400).json({ error: 'action is required' });
-    if (!['activer', 'desactiver', 'set_defective', 'set_maintenance'].includes(action)) {
-      return res.status(400).json({ error: 'Invalid action' });
-    }
-    // Simulate success
-    return res.status(200).json({ success: true, macAddress, action });
-  }),
-
-requestDeviceStatus: jest.fn((req, res) => res.status(200).json({})),
-  subscribeDeviceUpdates: jest.fn((req, res) => res.status(200).json({})),
-  markNotificationAsRead: jest.fn((req, res) => res.status(200).json({})),
-  getDeviceHeartbeat: jest.fn((req, res) => res.status(200).json({})),
-  getRiskyDevices: jest.fn((req, res) => res.status(200).json({})),
-  getNotificationsForDevice: jest.fn((req, res) => res.status(200).json({})),
-  getAllDevices: jest.fn((req, res) => res.status(200).json([])),
-  getDevice: jest.fn((req, res) => res.status(200).json({})),
-  createDevice: jest.fn((req, res) => res.status(201).json({})),
-  updateDevice: jest.fn((req, res) => res.status(200).json({})),
-  deleteDevice: jest.fn((req, res) => res.status(204).end()),
-}));
-*/
+import { disconnectClient } from '../utils/mqtt_client';
 
 const app = express();
 app.use(express.json());
@@ -41,10 +14,14 @@ describe('POST /devices/control', () => {
       .send({ macAddress: 'E4:5F:01:08:18:C8', action: 'activer' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      success: true,
-      macAddress: 'E4:5F:01:08:18:C8',
-      action: 'activer'
-    });
+  "status": "ok",
+  "message": "Command activer executed",
+  "response": {
+    "active": true,
+    "online": true,
+    "status": "Actif"
+  }
+});
   });
 
   it('should fail if macAddress is missing', async () => {
@@ -71,16 +48,20 @@ describe('POST /devices/control', () => {
     expect(res.body).toHaveProperty('error', 'Invalid action');
   });
 
-  it('should handle controller errors gracefully', async () => {
-    // Temporarily override mock to throw
-    const { controlDevice } = require('../controllers/deviceController');
-    controlDevice.mockImplementationOnce(async (_req: any, res: any) => {
-      throw new Error('Unexpected error');
-    });
+  it('should fail if macAddress is invalid or device is not connected', async () => {
     const res = await request(app)
       .post('/devices/control')
-      .send({ macAddress: 'AA:BB:CC:DD:EE:FF', action: 'activer' });
-    // Express error handler may return 500 or custom error
-    expect([500, 400]).toContain(res.status);
-  });
+      .send({ macAddress: '00:00:00:00:00:00', action: 'activer' }); // invalid or offline MAC
+    expect(res.status).toBe(500); 
+    expect(res.body).toMatchObject({
+      error: true,
+      message: 'ODB is not activated or not responding'
+    });
+  },
+ 8000);
+
+ afterAll(async () => {
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  disconnectClient();
+});
 });

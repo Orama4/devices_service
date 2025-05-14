@@ -155,7 +155,12 @@ export const deleteDevice = async (req: Request, res: Response): Promise<void> =
 
 export const controlDevice = async (req: Request, res: Response) => {
   const { macAddress, action } = req.body;
-
+  if (!macAddress) {
+    return res.status(400).json({ error: 'macAddress is required' });
+  }
+  if (!action) {
+    return res.status(400).json({ error: 'action is required' });
+  }
   // Validate the action
   if (!['activer', 'desactiver', 'set_defective', 'set_maintenance'].includes(action)) {
     return res.status(400).json({ error: 'Invalid action' });

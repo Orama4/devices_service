@@ -51,4 +51,13 @@ export function publish(topic: string, message: object): void {
   });
 }
 
+export const disconnectClient = () => {
+  if (client && client.connected) {
+    client.end(true, () => {
+      if (process.env.NODE_ENV !== 'test') {
+        console.log('🔌 MQTT client disconnected');
+      }
+    });
+  }
+};
 export default client;
