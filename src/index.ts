@@ -56,6 +56,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
 
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.status(500).json({ error: err.message });
+});
+
 export const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
@@ -90,6 +94,5 @@ process.on("SIGINT", () => {
     process.exit(0);
   });
 });
-
 
 

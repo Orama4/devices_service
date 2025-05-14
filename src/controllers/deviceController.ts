@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { DeviceActionValidator } from '../utils/deviceUtils'
 import { 
   sendDeviceCommand, 
   sendStatusRequest, 
@@ -10,18 +11,19 @@ import {
   getAndMarkDeviceAlerts,
   marknotificationAsRead,
   getAllEndUsersService, 
-  getEndUserByIdService 
-} from '../services/deviceService';
-
-import { 
+  getEndUserByIdService,
   getDeviceService,
   getAllDevicesService, 
   createDeviceService,
   updateDeviceService,
   deleteDeviceService,
-
 } from '../services/deviceService';
 
+
+
+// Device CRUD Operations
+
+//Get all devices
 export const getAllDevices = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -43,38 +45,8 @@ export const getAllDevices = async (req: Request, res: Response) => {
   }
 };
 
-export const getNotificationsForDevice = async (req: Request, res: Response) => {
-  const deviceId = Number(req.params.deviceId);
-  
-  if (isNaN(deviceId)) {
-    return res.status(400).json({ error: "Invalid device ID" });
-  }
 
-  try {
-    const alerts = await getAndMarkDeviceAlerts(deviceId);
-    return res.status(200).json(alerts);
-  } catch (error) {
-    console.error("❌ Failed to fetch notifications:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-export const markNotificationAsRead = async (req: Request, res: Response) => {
-  try {
-    const notificationId = Number(req.params.notificationId || "0")
-    if (isNaN(notificationId)) {
-      return res.status(400).json({ error: "Invalid notification ID" });
-    }
-    const marked = await marknotificationAsRead(notificationId)
-    if (!marked) {
-      return res.status(404).json({ error: "Notification not found" });
-    }
-    return res.status(200).json({ message: "Notification marked as read" });
-  } catch (error) {
-    return res.status(500).json({error : true , message : "Failed to mark notification as read"});
-  }
-}
-
+// Get single device
 export const getDevice = async (req: Request, res: Response): Promise<void> => {
   try {
     const deviceId = Number(req.params.id);
@@ -94,7 +66,7 @@ export const getDevice = async (req: Request, res: Response): Promise<void> => {
     }
   }
 };
-
+// Create device
 export const createDevice = async (req: Request, res: Response): Promise<void> => {
   try {
     const device = await createDeviceService(req.body);
@@ -107,6 +79,7 @@ export const createDevice = async (req: Request, res: Response): Promise<void> =
   }
 };
 
+// Update device
 export const updateDevice = async (req: Request, res: Response): Promise<void> => {
   try {
     const deviceId = Number(req.params.id);
@@ -134,7 +107,7 @@ export const updateDevice = async (req: Request, res: Response): Promise<void> =
     });
   }
 };
-
+// Delete device
 export const deleteDevice = async (req: Request, res: Response): Promise<void> => {
   try {
     const deviceId = Number(req.params.id);
@@ -152,27 +125,62 @@ export const deleteDevice = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-
+// Device Commands and Monitoring
 export const controlDevice = async (req: Request, res: Response) => {
-  const { macAddress, action } = req.body;
-
-  // Validate the action
-  if (!['activer', 'desactiver', 'set_defective', 'set_maintenance'].includes(action)) {
-    return res.status(400).json({ error: 'Invalid action' });
-  }
-
   try {
+    const { macAddress, action } = req.body;
+    if (!macAddress) {
+      return res.status(400).json({ error: 'macAddress is required' });
+    }
+    if (!action) {
+      return res.status(400).json({ error: 'action is required' });
+    }
+    //validation
+    DeviceActionValidator.validate(action);
+    //Execution
     const deviceResponse = await sendDeviceCommand(macAddress, action);
-
     if (deviceResponse.error) {
       return res.status(500).json({ error: true, message: deviceResponse.message });
     }
 
     return res.json({ status: 'ok', message: `Command ${action} executed`, response: deviceResponse });
   } catch (err) {
-    return res.status(500).json({ error: true, message: 'Failed to control device.' });
+    return res.status(500).json({ error: true, message: 'Failed to control device, Invalid Command.' });
   }
 };
+
+//Notifications
+export const getNotificationsForDevice = async (req: Request, res: Response) => {
+  const deviceId = Number(req.params.deviceId);
+  
+  if (isNaN(deviceId)) {
+    return res.status(400).json({ error: "Invalid device ID" });
+  }
+
+  try {
+    const alerts = await getAndMarkDeviceAlerts(deviceId);
+    return res.status(200).json(alerts);
+  } catch (error) {
+    console.error("❌ Failed to fetch notifications:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+export const markNotificationAsRead = async (req: Request, res: Response) => {
+  try {
+    const notificationId = Number(req.params.notificationId || "0")
+    if (isNaN(notificationId)) {
+      return res.status(400).json({ error: "Invalid notification ID" });
+    }
+    const marked = await marknotificationAsRead(notificationId)
+    if (!marked) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+    return res.status(200).json({ message: "Notification marked as read" });
+  } catch (error) {
+    return res.status(500).json({error : true , message : "Failed to mark notification as read"});
+  }
+}
+
 
 // Handle device status request
 export const requestDeviceStatus = (req: Request, res: Response) => {
@@ -191,22 +199,6 @@ export const subscribeDeviceUpdates = (req: Request, res: Response) => {
 // Get last known heartbeat for a device from memory
 export const getDeviceHeartbeat = async (req: Request, res: Response) => {
   const { macAddress } = req.params;
-  
-  // First, check if we have the data in memory
-  /*const heartbeatData = getLastHeartbeatData(numDeviceId);
-  
-  if (heartbeatData) {
-    return res.json({
-      deviceId: numDeviceId,
-      heartbeat: heartbeatData,
-      lastUpdated: new Date(heartbeatData.timestamp * 1000).toISOString()
-    });
-  }
-  
-
-  */
-  // If not in memory, request it from the device
-  //requestHeartbeatData(numDeviceId);
   try {
     const response = await sendDeviceCommand(macAddress, 'status');
     return res.json({

@@ -1,38 +1,64 @@
 import express from 'express';
-import { 
-  controlDevice, 
-  requestDeviceStatus, 
-  subscribeDeviceUpdates, 
-  getDeviceHeartbeat, 
+import {
+  // Device CRUD Operations
+  getAllDevices,
+  getDevice,
+  createDevice,
+  updateDevice,
+  deleteDevice,
+  
+  // Device Status & Control
+  controlDevice,
+  requestDeviceStatus,
+  subscribeDeviceUpdates,
+  
+  // Heartbeat & Monitoring
+  getDeviceHeartbeat,
   refreshDeviceHeartbeat,
   getRiskyDevices,
+  
+  // Notifications
+  getNotificationsForDevice,
   markNotificationAsRead
 } from "../controllers/deviceController";
 
-import {getAllDevices,getDevice,createDevice,updateDevice, deleteDevice,getNotificationsForDevice} from "../controllers/deviceController";
-
 const router = express.Router();
 
-// Control device (send command)
-router.post('/control', controlDevice);
+function asyncHandler(fn: any) {
+  return function (req: any, res: any, next: any) {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+/**
+ * Device CRUD Routes
+ */
+router.route("/")
+  .get(getAllDevices)    // GET /devices?page=1&pageSize=5
+  .post(createDevice);   // POST /devices
 
-//status and subscribtion
-router.get('/status/:deviceId', requestDeviceStatus);  //sends a new request to the device for its status
-router.post('/subscribe/:deviceId', subscribeDeviceUpdates); // Subscribe to device updates
-router.put('/markNotification/:notificationId', markNotificationAsRead); // Mark notification as read
+router.route("/:id")
+  .get(getDevice)        // GET /devices/:id
+  .put(updateDevice)     // PUT /devices/:id
+  .delete(deleteDevice); // DELETE /devices/:id
 
-// Heartbeat data routes
-router.get('/heartbeat/:macAddress', getDeviceHeartbeat);  //first checks cached data, then requests new data if needed
-router.get('/risky-devices', getRiskyDevices);      // Get all risky devices
-router.get('/notifications/:deviceId',getNotificationsForDevice);
+/**
+ * Device Control & Status Routes
+ */
+router.post('/control',asyncHandler(controlDevice));            // POST /devices/control
+router.get('/status/:deviceId', requestDeviceStatus); // GET /devices/status/:deviceId
+router.post('/subscribe/:deviceId', subscribeDeviceUpdates); // POST /devices/subscribe/:deviceId
 
-router.get("/",getAllDevices);//http://localhost:5002/devices?page=1&pageSize=5
-router.get("/:id",getDevice);//http://localhost:5002/devices/3
-router.post("/", createDevice);//http://localhost:5002/devices
-router.put("/:id", updateDevice);//http://localhost:5002/devices/3
-router.delete("/:id",deleteDevice);//http://localhost:5002/devices/3
+/**
+ * Heartbeat & Monitoring Routes
+ */
+router.get('/heartbeat/:macAddress', asyncHandler(getDeviceHeartbeat));  // GET /devices/heartbeat/:macAddress
+router.post('/heartbeat-refresh/:macAddress', refreshDeviceHeartbeat); // POST /devices/heartbeat-refresh/:macAddress
+router.get('/risky-devices', asyncHandler(getRiskyDevices));            // GET /devices/risky-devices
 
+/**
+ * Notification Routes
+ */
+router.get('/notifications/:deviceId', asyncHandler(getNotificationsForDevice));  // GET /devices/notifications/:deviceId
+router.put('/notifications/:notificationId', asyncHandler(markNotificationAsRead)); // PUT /devices/notifications/:notificationId
 
-export default router; // Export the router to be used in your main app file
-
-
+export default router;

@@ -1,54 +1,78 @@
-import mqtt, { MqttClient} from "mqtt";
+import mqtt, { MqttClient } from "mqtt";
 
-const MQTT_BROKER_URL = "mqtts://9f6d6fadb82c4fcba6aebc53d4b6cdf7.s1.eu.hivemq.cloud";
-const MQTT_USERNAME = "Esp_8266";
-const MQTT_PASSWORD = "Esp_8266";
-const CLIENT_ID = `nodejs-client-${Math.random().toString(16).slice(2, 8)}`;
+// Configuration
+const MQTT_CONFIG = {
+  BROKER_URL: "mqtts://9f6d6fadb82c4fcba6aebc53d4b6cdf7.s1.eu.hivemq.cloud",
+  CREDENTIALS: {
+    username: "Esp_8266",
+    password: "Esp_8266",
+    clientId: `nodejs-client-${Math.random().toString(16).slice(2, 8)}`,
+    reconnectPeriod: 1000
+  }
+};
 
-const client: MqttClient = mqtt.connect(MQTT_BROKER_URL, {
-  username: MQTT_USERNAME,
-  password: MQTT_PASSWORD,
-  clientId: CLIENT_ID,
-  reconnectPeriod: 1000,
+// MQTT Client Setup
+const mqttClient: MqttClient = mqtt.connect(
+  MQTT_CONFIG.BROKER_URL, 
+  MQTT_CONFIG.CREDENTIALS
+);
+
+// Event Handlers
+mqttClient.on("connect", () => {
+  console.log("Connected to MQTT broker");
 });
 
-client.on("connect", () => {
-  console.log("✅ Connected to HiveMQ from Node.js!");
+mqttClient.on("error", (err) => {
+  console.error("MQTT connection error:", err.message);
 });
 
-client.on("error", (err) => {
-  console.error("❌ MQTT Connection error:", err.message);
-});
-
+/**
+ * Subscribes to an MQTT topic and sets up message handling
+ * @param topic - Topic to subscribe to
+ * @param callback - Function to handle incoming messages
+ */
 export function subscribe(topic: string, callback: (payload: any) => void): void {
-  client.subscribe(topic, (err) => {
+  mqttClient.subscribe(topic, (err) => {
     if (err) {
-      console.error(`❌ Failed to subscribe to ${topic}:`, err.message);
-    } else {
-      console.log(`📡 Subscribed to topic: ${topic}`);
+      console.error(`Subscription failed for ${topic}:`, err.message);
+      return;
     }
+    console.log(`Subscribed to ${topic}`);
   });
 
-  client.on("message", (receivedTopic, message) => {
+  mqttClient.on("message", (receivedTopic, message) => {
     if (receivedTopic === topic) {
       try {
-        const payload = JSON.parse(message.toString());
-        callback(payload);
+        callback(JSON.parse(message.toString()));
       } catch (error) {
-        console.error("❌ Failed to parse MQTT message:", error);
+        console.error(`Message parsing error for ${topic}:`, error);
       }
     }
   });
 }
 
+/**
+ * Publishes a message to an MQTT topic
+ * @param topic - Topic to publish to
+ * @param message - Message payload (will be stringified)
+ */
 export function publish(topic: string, message: object): void {
-  client.publish(topic, JSON.stringify(message), (err) => {
+  mqttClient.publish(topic, JSON.stringify(message), (err) => {
     if (err) {
-      console.error(`❌ Failed to publish to ${topic}:`, err.message);
-    } else {
-      console.log(`📤 Message published to ${topic}:`, message);
+      console.error(`Publish failed for ${topic}:`, err.message);
+      return;
     }
+    console.log(`Published to ${topic}`);
   });
 }
 
-export default client;
+export const disconnectClient = () => {
+  if (mqttClient && mqttClient.connected) {
+    mqttClient.end(true, () => {
+      if (process.env.NODE_ENV !== 'test') {
+        console.log('🔌 MQTT client disconnected');
+      }
+    });
+  }
+};
+export default mqttClient;
