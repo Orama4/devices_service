@@ -11,7 +11,7 @@ describe("POST /devices/control", () => {
   it("should succeed with valid payload", async () => {
     const res = await request(app)
       .post("/devices/control")
-      .send({ macAddress: "E4:5F:01:08:18:C7", action: "activer" });
+      .send({ macAddress: "E4:5F:01:08:18:C8", action: "activer" });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       status: "ok",

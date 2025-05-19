@@ -156,14 +156,30 @@ export const sendDeviceCommand = (
   payloadData: object = {}
 ): Promise<any> => {
   return new Promise((resolve) => {
+    //checking if MQTT client is connected or not 
+    // if (!mqttClient.connected) {
+    //   return Promise.resolve({
+    //     error: true,
+    //     message: "MQTT client not connected"
+    //   });
+    // }
+    const isValidMac = /^([0-9A-Fa-f]{2}[:\-]){5}([0-9A-Fa-f]{2})$/.test(macAddress);
+    if (!isValidMac) {
+      return resolve({
+        error: true,
+        message: `Invalid MAC address format: ${macAddress}`,
+      });
+    }
+    //remove special characters from MAC address
     const sanitized = macAddress.replace(/[:\-]/g, "").toUpperCase();
+    //preparing request and response topic to send to MQTT server 
     const requestTopic = `device${sanitized}/request`;
     const responseTopic = `device${sanitized}/response`;
+    //preparing message to send in the topic 
+    
     const payload = JSON.stringify({ command, ...payloadData });
-    console.log(requestTopic);
-
     let isHandled = false;
-
+    //preparing cleaning function 
     const cleanup = () => {
       mqttClient.removeListener("message", messageHandler);
       mqttClient.unsubscribe(responseTopic, (err) => {
@@ -174,21 +190,30 @@ export const sendDeviceCommand = (
         }
       });
     };
-
+    //preparing message handling function to use when receiving a message from MQTT client
     const messageHandler = (topic: string, message: Buffer) => {
       if (topic === responseTopic && !isHandled) {
         isHandled = true;
         clearTimeout(timeout);
-        const response = JSON.parse(message.toString());
-        console.log("📨 Response received:", response);
-        cleanup();
-        resolve(response); // Respond normally
+        try {
+          const response = JSON.parse(message.toString());
+          console.log("Response received:", response);
+          cleanup();
+          resolve(response);
+        } catch (err) {
+          cleanup();
+          resolve({
+            error: true,
+            message: `Failed to parse response: ${err instanceof Error ? err.message : String(err)}`
+          });
+        }
       }
     };
-
+    //Execution : 
+    //1. subscribing on MQTT response topic to be triggred once a response is published by the device on MQTT server
     mqttClient.subscribe(responseTopic, (err) => {
       if (err) {
-        console.error(`❌ Failed to subscribe to ${responseTopic}`, err);
+        console.error(`Failed to subscribe to ${responseTopic}`, err);
         isHandled = true;
         cleanup();
         return resolve({
@@ -196,13 +221,13 @@ export const sendDeviceCommand = (
           message: `Subscription failed: ${err.message}`,
         });
       }
-      console.log(`✅ Subscribed to ${responseTopic}`);
+      console.log(`Subscribed to ${responseTopic}`);
     });
-
+    //2. Publishing the command on the request topic so that the device can be triggred once the backend server publish the request topic 
     mqttClient.publish(requestTopic, payload, (err) => {
       if (err) {
         console.error(
-          `❌ Failed to send command '${command}' to device ${macAddress}`,
+          `Failed to send command '${command}' to device ${macAddress}`,
           err
         );
         isHandled = true;
@@ -212,22 +237,22 @@ export const sendDeviceCommand = (
           message: `Publish failed: ${err.message}`,
         });
       }
-      console.log(`📡 Command '${command}' sent to device ${macAddress}`);
+      console.log(`Command '${command}' sent to device ${macAddress}`);
     });
-
+    //Listener to response message and handling the messages using the mesagage Handler function
     mqttClient.on("message", messageHandler);
-
+    //In case no message has been published on response topic <=> nothing is handled, time out and ODB is nor responding 
     const timeout = setTimeout(() => {
       if (!isHandled) {
         isHandled = true;
         cleanup();
-        console.warn(`⚠️ Timeout: ODB not responding for device ${macAddress}`);
+        console.warn(`Timeout: ODB not responding for device ${macAddress}`);
         resolve({
           error: true,
           message: "ODB is not activated or not responding",
         });
       }
-    }, 5000);
+    }, 5000);//duration of timeout : 5000 ms <=> 5 seconds
   });
 };
 
