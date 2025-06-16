@@ -8,6 +8,7 @@ import { subscribe, publish } from "./utils/mqtt_client";
 import {createNotificationForDeviceAlert , getAndMarkDeviceAlerts} from "./services/deviceService"
 
 import endUserRoutes from './routes/endUserRoutes';
+import { loggerMiddleware } from "./middlewares/loggerMiddleware";
 
 // Configuration des variables d'environnement
 dotenv.config();
@@ -46,6 +47,7 @@ app.use(cors());
 
 // Other middlewares
 app.use(express.json());
+app.use(loggerMiddleware);
 
 // Routes
 app.use("/users", userRoutes);
